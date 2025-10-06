@@ -70,7 +70,7 @@
                     </div>
                 </div>
                 
-                <form id="videoForm" enctype="multipart/form-data">
+                <form id="videoForm" action="/upload" method="post" enctype="multipart/form-data">
 
                     <!-- Custom Prompt -->
                     <div class="mb-6">
@@ -102,11 +102,11 @@
 
                         <!-- File Upload -->
                         <div id="fileUpload" class="upload-section">
-                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                            <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
                                 <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
                                 <p class="text-lg text-gray-600 mb-2">Choose a video file to upload</p>
                                 <p class="text-sm text-gray-500 mb-4">Supports MP4, AVI, MOV, and other common video formats</p>
-                                <input type="file" id="video_file" name="video_file" accept="video/*" class="hidden">
+                                <input type="file" id="video_file" name="video_file" accept="video/*" class="hidden" required>
                                 <button type="button" onclick="document.getElementById('video_file').click()" class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
                                     Select Video File
                                 </button>
@@ -241,6 +241,11 @@
             this.classList.remove('bg-gray-600', 'hover:bg-gray-700');
             document.getElementById('urlTab').classList.add('bg-gray-600', 'hover:bg-gray-700');
             document.getElementById('urlTab').classList.remove('bg-blue-600', 'hover:bg-blue-700');
+
+            // Toggle required fields
+            document.getElementById('video_file').required = true;
+            const urlInput = document.getElementById('video_url');
+            if (urlInput) urlInput.required = false;
         });
 
         document.getElementById('urlTab').addEventListener('click', function() {
@@ -250,6 +255,11 @@
             this.classList.remove('bg-gray-600', 'hover:bg-gray-700');
             document.getElementById('fileTab').classList.add('bg-gray-600', 'hover:bg-gray-700');
             document.getElementById('fileTab').classList.remove('bg-blue-600', 'hover:bg-blue-700');
+
+            // Toggle required fields
+            document.getElementById('video_file').required = false;
+            const urlInput = document.getElementById('video_url');
+            if (urlInput) urlInput.required = true;
         });
 
         // File selection handling
@@ -259,6 +269,31 @@
                 document.getElementById('fileInfo').textContent = `Selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
             }
         });
+
+        // Drag & drop support
+        const dropZone = document.getElementById('dropZone');
+        if (dropZone) {
+            ['dragenter', 'dragover'].forEach(evt => dropZone.addEventListener(evt, e => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('border-blue-400');
+            }));
+
+            ['dragleave', 'drop'].forEach(evt => dropZone.addEventListener(evt, e => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('border-blue-400');
+            }));
+
+            dropZone.addEventListener('drop', e => {
+                const files = e.dataTransfer.files;
+                if (files && files[0]) {
+                    const input = document.getElementById('video_file');
+                    input.files = files;
+                    document.getElementById('fileInfo').textContent = `Selected: ${files[0].name} (${(files[0].size / 1024 / 1024).toFixed(2)} MB)`;
+                }
+            });
+        }
 
         // Form submission
         document.getElementById('videoForm').addEventListener('submit', async function(e) {
