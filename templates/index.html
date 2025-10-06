@@ -111,6 +111,16 @@
                                     Select Video File
                                 </button>
                                 <p id="fileInfo" class="text-sm text-gray-600 mt-2"></p>
+                                <!-- Upload progress -->
+                                <div id="uploadProgressContainer" class="hidden mt-6 text-left">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-sm font-medium text-gray-700">Upload Progress</span>
+                                        <span id="uploadProgressText" class="text-sm text-gray-600">0%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div id="uploadProgressBar" class="bg-blue-600 h-2 rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -309,36 +319,94 @@
                 return;
             }
             
-            // Show loading
-            document.getElementById('loadingSection').classList.add('show');
-            document.getElementById('resultsSection').classList.remove('show');
-            
-            try {
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData
+            const hasFile = !!fileInput.files[0];
+
+            // If uploading a file, use XHR to track upload progress
+            if (hasFile) {
+                const uploadProgressContainer = document.getElementById('uploadProgressContainer');
+                const uploadProgressBar = document.getElementById('uploadProgressBar');
+                const uploadProgressText = document.getElementById('uploadProgressText');
+
+                uploadProgressContainer.classList.remove('hidden');
+                uploadProgressBar.style.width = '0%';
+                uploadProgressText.textContent = '0%';
+
+                await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/upload');
+
+                    xhr.upload.onprogress = function (event) {
+                        if (event.lengthComputable) {
+                            const percent = Math.round((event.loaded / event.total) * 100);
+                            uploadProgressBar.style.width = percent + '%';
+                            uploadProgressText.textContent = percent + '%';
+                        }
+                    };
+
+                    // When upload completes (request body fully sent), switch to analyzing spinner
+                    xhr.upload.onload = function () {
+                        uploadProgressContainer.classList.add('hidden');
+                        document.getElementById('loadingSection').classList.add('show');
+                        document.getElementById('resultsSection').classList.remove('show');
+                    };
+
+                    xhr.onreadystatechange = function () {
+                        if (xhr.readyState === 4) {
+                            try {
+                                const data = JSON.parse(xhr.responseText || '{}');
+                                if (xhr.status >= 200 && xhr.status < 300 && data.success) {
+                                    // Populate results
+                                    document.getElementById('analysisResults').textContent = data.analysis;
+                                    document.getElementById('videoDuration').textContent = `${data.duration.toFixed(2)}s`;
+                                    document.getElementById('framesAnalyzed').textContent = data.frames_analyzed;
+                                    document.getElementById('analysisType').textContent = 'Investigative Categories';
+                                    parseAndDisplayMetadata(data.analysis);
+                                    document.getElementById('resultsSection').classList.add('show');
+                                    document.getElementById('loadingSection').classList.remove('show');
+                                    resolve();
+                                } else {
+                                    alert('Error: ' + (data.error || 'Upload failed'));
+                                    uploadProgressContainer.classList.add('hidden');
+                                    resolve();
+                                }
+                            } catch (e) {
+                                alert('Error: ' + e.message);
+                                uploadProgressContainer.classList.add('hidden');
+                                resolve();
+                            }
+                        }
+                    };
+
+                    xhr.onerror = function () {
+                        alert('Network error during upload');
+                        uploadProgressContainer.classList.add('hidden');
+                        reject(new Error('Network error'));
+                    };
+
+                    xhr.send(formData);
                 });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Display results
-                    document.getElementById('analysisResults').textContent = data.analysis;
-                    document.getElementById('videoDuration').textContent = `${data.duration.toFixed(2)}s`;
-                    document.getElementById('framesAnalyzed').textContent = data.frames_analyzed;
-                    document.getElementById('analysisType').textContent = 'Investigative Categories';
-                    
-                    // Parse and display metadata
-                    parseAndDisplayMetadata(data.analysis);
-                    
-                    document.getElementById('resultsSection').classList.add('show');
-                } else {
-                    alert('Error: ' + data.error);
+            } else {
+                // URL-based analysis: no upload progress, just show analyzing state
+                document.getElementById('loadingSection').classList.add('show');
+                document.getElementById('resultsSection').classList.remove('show');
+                try {
+                    const response = await fetch('/upload', { method: 'POST', body: formData });
+                    const data = await response.json();
+                    if (data.success) {
+                        document.getElementById('analysisResults').textContent = data.analysis;
+                        document.getElementById('videoDuration').textContent = `${data.duration.toFixed(2)}s`;
+                        document.getElementById('framesAnalyzed').textContent = data.frames_analyzed;
+                        document.getElementById('analysisType').textContent = 'Investigative Categories';
+                        parseAndDisplayMetadata(data.analysis);
+                        document.getElementById('resultsSection').classList.add('show');
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                } finally {
+                    document.getElementById('loadingSection').classList.remove('show');
                 }
-            } catch (error) {
-                alert('Error: ' + error.message);
-            } finally {
-                document.getElementById('loadingSection').classList.remove('show');
             }
         });
 
