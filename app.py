@@ -1,8 +1,9 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
+from fastapi.responses import JSONResponse
+from fastapi.templating import Jinja2Templates
 import os
 import tempfile
 import requests
-from werkzeug.utils import secure_filename
 import google.generativeai as genai
 import cv2
 import base64
@@ -11,8 +12,8 @@ from PIL import Image
 import json
 import time
 
-app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
+app = FastAPI()
+templates = Jinja2Templates(directory="templates")
 
 # Configure Gemini Pro
 genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
@@ -182,77 +183,66 @@ def analyze_video_with_gemini(frames, custom_prompt):
     except Exception as e:
         raise Exception(f"Gemini analysis failed: {str(e)}")
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+@app.get("/")
+def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-@app.route('/upload', methods=['POST'])
-def upload_video():
+@app.post("/upload")
+async def upload_video(
+    request: Request,
+    video_file: UploadFile | None = File(None),
+    video_url: str = Form("") ,
+    custom_prompt: str = Form("")
+):
     try:
-        custom_prompt = request.form.get('custom_prompt', '').strip()
-        
-        if 'video_file' in request.files:
-            # Handle file upload
-            file = request.files['video_file']
-            if file.filename == '':
-                return jsonify({'error': 'No file selected'}), 400
-            
-            if file:
-                filename = secure_filename(file.filename)
-                temp_path = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1])
-                file.save(temp_path.name)
-                video_path = temp_path.name
+        custom_prompt = (custom_prompt or "").strip()
+
+        if video_file is not None and video_file.filename:
+            suffix = os.path.splitext(video_file.filename)[1] or ".mp4"
+            temp_path = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+            content = await video_file.read()
+            with open(temp_path.name, "wb") as f:
+                f.write(content)
+            video_path = temp_path.name
         else:
-            # Handle URL input
-            video_url = request.form.get('video_url', '').strip()
+            video_url = (video_url or "").strip()
             if not video_url:
-                return jsonify({'error': 'No video URL provided'}), 400
-            
+                return JSONResponse({"error": "No video URL provided"}, status_code=400)
             video_path = download_video_from_url(video_url)
-        
+
         # Extract frames
         frames, duration = extract_frames_from_video(video_path)
-        
+
         if not frames:
-            return jsonify({'error': 'Could not extract frames from video'}), 400
-        
+            return JSONResponse({"error": "Could not extract frames from video"}, status_code=400)
+
         # Analyze with Gemini
         analysis = analyze_video_with_gemini(frames, custom_prompt)
-        
+
         # Clean up temporary file
         try:
             os.unlink(video_path)
-        except:
+        except Exception:
             pass
-        
-        return jsonify({
-            'success': True,
-            'analysis': analysis,
-            'duration': duration,
-            'frames_analyzed': len(frames)
-        })
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
-@app.route('/health')
+        return JSONResponse({
+            "success": True,
+            "analysis": analysis,
+            "duration": duration,
+            "frames_analyzed": len(frames)
+        })
+
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get('/health')
 def health():
-    return jsonify({'status': 'healthy'})
+    return {"status": "healthy"}
 
 if __name__ == '__main__':
-    # Check for API key
+    # Optional local run support via uvicorn
     if not os.getenv('GEMINI_API_KEY'):
         print("Warning: GEMINI_API_KEY environment variable not set!")
         print("Please set your Gemini API key: export GEMINI_API_KEY='your_api_key_here'")
-    
-    # Try port 5000, if busy try 5001
-    import socket
-    port = 5000
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(('localhost', port))
-    except OSError:
-        port = 5001
-        print(f"Port 5000 is busy, using port {port}")
-    
-    app.run(debug=True, host='0.0.0.0', port=port)
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=False)

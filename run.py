@@ -8,7 +8,7 @@ import sys
 def check_dependencies():
     """Check if required dependencies are installed"""
     try:
-        import flask
+        import fastapi
         import google.generativeai
         import cv2
         import PIL
@@ -66,9 +66,9 @@ def main():
     print("\n✅ All checks passed! Starting the application...")
     print("=" * 40)
     
-    # Import and run the app
-    from app import app
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Import and run with uvicorn
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=False)
 
 if __name__ == '__main__':
     main()
