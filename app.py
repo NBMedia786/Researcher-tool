@@ -109,11 +109,21 @@ def download_video_from_url(url):
 def extract_frames_from_video(video_path, max_frames=20):
     """Extract frames from video for analysis"""
     cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        # Common on minimal hosts when codecs/ffmpeg are missing
+        raise Exception(
+            "Failed to open video. This often happens when codecs are missing. On Railway, set NIXPACKS_PKGS=ffmpeg and redeploy, or upload an H.264 MP4."
+        )
     frames = []
     
     # Get video properties
     fps = cap.get(cv2.CAP_PROP_FPS)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if fps is None or fps <= 0:
+        cap.release()
+        raise Exception(
+            "Invalid FPS reported by decoder. Ensure ffmpeg/codecs are available (Railway: NIXPACKS_PKGS=ffmpeg) or convert the video to a standard MP4 (H.264)."
+        )
     duration = total_frames / fps if fps > 0 else 0
     
     # Calculate frame interval
