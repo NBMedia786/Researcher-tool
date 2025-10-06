@@ -63,8 +63,9 @@
                     <div class="flex">
                         <i class="fas fa-info-circle text-blue-600 mt-1 mr-3"></i>
                         <div class="text-sm text-blue-800">
-                            <p class="font-medium mb-2">Investigative Analysis Categories:</p>
-                            <p>This tool extracts timestamps specifically for: <strong>911 Calls</strong>, <strong>CCTV Footage</strong>, <strong>Interrogation</strong>, <strong>Bodycam Footage</strong>, <strong>Investigation</strong>, and provides a complete <strong>Summary & Storyline</strong> at the end.</p>
+                            <p class="font-medium mb-2">Investigative Analysis Features:</p>
+                            <p><strong>Metadata Extraction:</strong> Date, Address/Location, City/State/County, Police Department</p>
+                            <p><strong>Timestamp Categories:</strong> 911 Calls, CCTV Footage, Interrogation, Bodycam Footage, Investigation, and complete Summary & Storyline</p>
                         </div>
                     </div>
                 </div>
@@ -84,7 +85,7 @@
                             placeholder="Enter any specific requirements for the analysis... (e.g., 'Focus on license plates and vehicle movements' or 'Pay special attention to conversations and statements')"
                         ></textarea>
                         <p class="text-xs text-gray-500 mt-1">
-                            The system will automatically extract timestamps for 911 calls, CCTV footage, interrogation, bodycam footage, and investigation. Add specific requirements here if you need particular focus areas.
+                            The system will automatically extract metadata (date, location, police department) and timestamps for 911 calls, CCTV footage, interrogation, bodycam footage, and investigation. Add specific requirements here if you need particular focus areas.
                         </p>
                     </div>
 
@@ -174,19 +175,41 @@
                 </div>
                 
                 <div class="bg-gray-50 rounded-lg p-6 mb-6">
-                    <h4 class="font-semibold text-gray-800 mb-2">Video Information</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <h4 class="font-semibold text-gray-800 mb-4">Video Information & Metadata</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <span class="text-gray-600">Duration:</span>
-                            <span id="videoDuration" class="ml-2 font-medium">-</span>
+                            <h5 class="font-medium text-gray-700 mb-2">Technical Details</h5>
+                            <div class="space-y-2 text-sm">
+                                <div>
+                                    <span class="text-gray-600">Duration:</span>
+                                    <span id="videoDuration" class="ml-2 font-medium">-</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-600">Frames Analyzed:</span>
+                                    <span id="framesAnalyzed" class="ml-2 font-medium">-</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-600">Analysis Mode:</span>
+                                    <span id="analysisType" class="ml-2 font-medium">Investigative Categories</span>
+                                </div>
+                            </div>
                         </div>
                         <div>
-                            <span class="text-gray-600">Frames Analyzed:</span>
-                            <span id="framesAnalyzed" class="ml-2 font-medium">-</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-600">Analysis Mode:</span>
-                            <span id="analysisType" class="ml-2 font-medium">Investigative Categories</span>
+                            <h5 class="font-medium text-gray-700 mb-2">Extracted Metadata</h5>
+                            <div class="space-y-2 text-sm">
+                                <div>
+                                    <span class="text-gray-600">📅 Date:</span>
+                                    <span id="extractedDate" class="ml-2 font-medium text-blue-600">Will be extracted from video</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-600">📍 Location:</span>
+                                    <span id="extractedLocation" class="ml-2 font-medium text-blue-600">Will be extracted from video</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-600">🏛️ Police Dept:</span>
+                                    <span id="extractedDepartment" class="ml-2 font-medium text-blue-600">Will be extracted from video</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -270,6 +293,9 @@
                     document.getElementById('framesAnalyzed').textContent = data.frames_analyzed;
                     document.getElementById('analysisType').textContent = 'Investigative Categories';
                     
+                    // Parse and display metadata
+                    parseAndDisplayMetadata(data.analysis);
+                    
                     document.getElementById('resultsSection').classList.add('show');
                 } else {
                     alert('Error: ' + data.error);
@@ -280,6 +306,32 @@
                 document.getElementById('loadingSection').classList.remove('show');
             }
         });
+
+        // Parse and display metadata from analysis results
+        function parseAndDisplayMetadata(analysisText) {
+            const lines = analysisText.split('\n');
+            let date = 'Not found';
+            let location = 'Not found';
+            let department = 'Not found';
+            
+            for (let line of lines) {
+                const trimmedLine = line.trim();
+                
+                // Look for metadata patterns
+                if (trimmedLine.toLowerCase().includes('date:')) {
+                    date = trimmedLine.replace(/.*date:\s*/i, '').trim() || 'Not found';
+                } else if (trimmedLine.toLowerCase().includes('address/location:')) {
+                    location = trimmedLine.replace(/.*address\/location:\s*/i, '').trim() || 'Not found';
+                } else if (trimmedLine.toLowerCase().includes('police department:')) {
+                    department = trimmedLine.replace(/.*police department:\s*/i, '').trim() || 'Not found';
+                }
+            }
+            
+            // Update the display
+            document.getElementById('extractedDate').textContent = date;
+            document.getElementById('extractedLocation').textContent = location;
+            document.getElementById('extractedDepartment').textContent = department;
+        }
 
         // Download functionality
         document.getElementById('downloadBtn').addEventListener('click', function() {

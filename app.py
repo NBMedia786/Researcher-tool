@@ -18,7 +18,15 @@ app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
 genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
 
 # Default prompt for specific investigative categories
-DEFAULT_PROMPT = """Analyze this video and extract timestamps for the following specific categories:
+DEFAULT_PROMPT = """Analyze this video and extract the following information:
+
+## METADATA EXTRACTION (Extract from any visible text, audio, or context):
+- **DATE**: Any dates, times, or timestamps visible or mentioned
+- **ADDRESS/LOCATION**: Street addresses, building names, landmarks, or location references
+- **CITY/STATE/COUNTY**: Geographic location information
+- **POLICE DEPARTMENT**: Agency names, officer badges, department identifiers, or jurisdiction
+
+## TIMESTAMP ANALYSIS (Extract timestamps for these categories):
 
 1. 911 CALLS:
    - Emergency calls being made or received
@@ -60,16 +68,25 @@ DEFAULT_PROMPT = """Analyze this video and extract timestamps for the following 
    - Additional confessions or statements
    - Legal proceedings or hearings
 
+## FORMAT:
+**METADATA:**
+- Date: [extracted date/time information]
+- Address/Location: [extracted location details]
+- City/State/County: [extracted geographic information]
+- Police Department: [extracted agency information]
+
+**TIMESTAMPS:**
 Format each timestamp as: [MM:SS] - [CATEGORY] - Description
 
-After extracting all timestamps, provide a comprehensive SUMMARY AND STORYLINE section that explains:
+**SUMMARY AND STORYLINE:**
+After extracting all timestamps, provide a comprehensive summary that explains:
 - The overall narrative of the video
 - Key events and their significance
 - Timeline of important developments
 - Main characters or subjects involved
 - Conclusion or outcome
 
-Be thorough in identifying moments that fit these specific categories."""
+Be thorough in identifying moments that fit these specific categories and extract all visible metadata."""
 
 def download_video_from_url(url):
     """Download video from URL"""
@@ -228,4 +245,14 @@ if __name__ == '__main__':
         print("Warning: GEMINI_API_KEY environment variable not set!")
         print("Please set your Gemini API key: export GEMINI_API_KEY='your_api_key_here'")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Try port 5000, if busy try 5001
+    import socket
+    port = 5000
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('localhost', port))
+    except OSError:
+        port = 5001
+        print(f"Port 5000 is busy, using port {port}")
+    
+    app.run(debug=True, host='0.0.0.0', port=port)
