@@ -105,8 +105,8 @@
                             <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
                                 <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
                                 <p class="text-lg text-gray-600 mb-2">Choose a video file to upload</p>
-                                <p class="text-sm text-gray-500 mb-4">Supports MP4, AVI, MOV, and other common video formats</p>
-                                <input type="file" id="video_file" name="video_file" accept="video/*" class="hidden" required>
+                                <p class="text-sm text-gray-500 mb-4">Only MP4 video files are accepted</p>
+                                <input type="file" id="video_file" name="video_file" accept="video/mp4,.mp4" class="hidden" required>
                                 <button type="button" onclick="document.getElementById('video_file').click()" class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
                                     Select Video File
                                 </button>

@@ -16,7 +16,7 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 # Configure Gemini Pro
-genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+genai.configure(api_key=os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY'))
 
 # Default prompt for specific investigative categories
 DEFAULT_PROMPT = """Analyze this video and extract the following information:
@@ -229,7 +229,20 @@ async def upload_video(
         custom_prompt = (custom_prompt or "").strip()
 
         if video_file is not None and video_file.filename:
-            suffix = os.path.splitext(video_file.filename)[1] or ".mp4"
+            # Validate file extension - only allow MP4 files
+            file_extension = os.path.splitext(video_file.filename)[1].lower()
+            if file_extension not in ['.mp4']:
+                return JSONResponse({
+                    "error": f"Invalid file format. Only MP4 files are accepted. Received: {file_extension}"
+                }, status_code=400)
+            
+            # Validate MIME type
+            if video_file.content_type and not video_file.content_type.startswith('video/mp4'):
+                return JSONResponse({
+                    "error": f"Invalid file type. Only MP4 videos are accepted. Received: {video_file.content_type}"
+                }, status_code=400)
+            
+            suffix = ".mp4"  # Force MP4 extension
             temp_path = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
             content = await video_file.read()
             with open(temp_path.name, "wb") as f:
