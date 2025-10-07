@@ -365,8 +365,8 @@ def health():
 
 if __name__ == '__main__':
     # Optional local run support via uvicorn
-    if not os.getenv('GEMINI_API_KEY'):
-        print("Warning: GEMINI_API_KEY environment variable not set!")
-        print("Please set your Gemini API key: export GEMINI_API_KEY='your_api_key_here'")
+    if not OPENROUTER_API_KEY:
+        print("Warning: OPENROUTER_API_KEY environment variable not set!")
+        print("Please set your OpenRouter API key: export OPENROUTER_API_KEY='your_api_key_here'")
     import uvicorn
     uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=False)
