@@ -236,7 +236,7 @@ def extract_frames_from_video(video_path, max_frames=20):
     return frames, duration
 
 def analyze_video_with_gemini(frames, custom_prompt):
-    """Analyze video frames using OpenRouter Gemini Pro"""
+    """Analyze video frames using OpenRouter Gemini 2.5 Pro"""
     try:
         if not OPENROUTER_API_KEY:
             raise Exception("OpenRouter API key not found. Please set OPENROUTER_API_KEY environment variable.")
@@ -264,7 +264,7 @@ def analyze_video_with_gemini(frames, custom_prompt):
         }
         
         data = {
-            "model": "google/gemini-pro-1.5",
+            "model": "google/gemini-2.5-pro",
             "messages": [
                 {
                     "role": "user",
