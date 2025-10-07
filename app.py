@@ -4,7 +4,6 @@ from fastapi.templating import Jinja2Templates
 import os
 import tempfile
 import requests
-import google.generativeai as genai
 import cv2
 import base64
 from io import BytesIO
@@ -17,8 +16,9 @@ import re
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-# Configure Gemini Pro
-genai.configure(api_key=os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY'))
+# OpenRouter API configuration
+OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY') or os.getenv('GEMINI_API_KEY')
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Default prompt for specific investigative categories
 DEFAULT_PROMPT = """Analyze this video and extract the following information:
@@ -236,9 +236,10 @@ def extract_frames_from_video(video_path, max_frames=20):
     return frames, duration
 
 def analyze_video_with_gemini(frames, custom_prompt):
-    """Analyze video frames using Gemini Pro"""
+    """Analyze video frames using OpenRouter Gemini Pro"""
     try:
-        model = genai.GenerativeModel('gemini-1.5-pro')
+        if not OPENROUTER_API_KEY:
+            raise Exception("OpenRouter API key not found. Please set OPENROUTER_API_KEY environment variable.")
         
         # Use custom prompt or default comprehensive prompt
         if custom_prompt.strip():
@@ -246,23 +247,47 @@ def analyze_video_with_gemini(frames, custom_prompt):
         else:
             prompt = DEFAULT_PROMPT
         
-        # Prepare content for Gemini
+        # Prepare content for OpenRouter
         content_parts = [prompt]
         
-        # Add frames with timestamps
+        # Add frames with timestamps as text descriptions
         for frame in frames:
-            content_parts.append(f"Timestamp: {frame['timestamp']:.2f}s")
-            content_parts.append({
-                "mime_type": "image/jpeg",
-                "data": frame['image']
-            })
+            content_parts.append(f"Timestamp: {frame['timestamp']:.2f}s - Frame {frame['frame_number']}")
+            content_parts.append(f"Image data: {frame['image']}")  # Base64 image data
         
-        # Generate analysis
-        response = model.generate_content(content_parts)
-        return response.text
+        # Prepare the request for OpenRouter
+        headers = {
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://github.com/NBMedia786/Researcher-tool",
+            "X-Title": "AI Video Analyzer"
+        }
+        
+        data = {
+            "model": "google/gemini-pro-1.5",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "\n".join(content_parts)
+                }
+            ],
+            "max_tokens": 4000,
+            "temperature": 0.7
+        }
+        
+        # Make request to OpenRouter
+        response = requests.post(OPENROUTER_API_URL, headers=headers, json=data)
+        response.raise_for_status()
+        
+        result = response.json()
+        
+        if 'choices' in result and len(result['choices']) > 0:
+            return result['choices'][0]['message']['content']
+        else:
+            raise Exception(f"Unexpected response format: {result}")
         
     except Exception as e:
-        raise Exception(f"Gemini analysis failed: {str(e)}")
+        raise Exception(f"OpenRouter analysis failed: {str(e)}")
 
 @app.get("/")
 def index(request: Request):
