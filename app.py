@@ -236,8 +236,8 @@ async def upload_video(
                     "error": f"Invalid file format. Only MP4 files are accepted. Received: {file_extension}"
                 }, status_code=400)
             
-            # Validate MIME type
-            if video_file.content_type and not video_file.content_type.startswith('video/mp4'):
+            # Validate MIME type (be more flexible with curl uploads)
+            if video_file.content_type and video_file.content_type not in ['video/mp4', 'application/octet-stream']:
                 return JSONResponse({
                     "error": f"Invalid file type. Only MP4 videos are accepted. Received: {video_file.content_type}"
                 }, status_code=400)
