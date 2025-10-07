@@ -112,7 +112,7 @@ def extract_frames_from_video(video_path, max_frames=20):
     if not cap.isOpened():
         # Common on minimal hosts when codecs/ffmpeg are missing
         raise Exception(
-            "Failed to open video. This often happens when codecs are missing. On Railway, set NIXPACKS_PKGS=ffmpeg and redeploy, or upload an H.264 MP4."
+            "Failed to open video. This often happens when codecs are missing. On Railway, set NIXPACKS_PKGS=ffmpeg,ffmpeg-full and redeploy, or upload an H.264 MP4. The nixpacks.toml should also include ffmpeg in nixPkgs."
         )
     frames = []
     
@@ -122,7 +122,7 @@ def extract_frames_from_video(video_path, max_frames=20):
     if fps is None or fps <= 0:
         cap.release()
         raise Exception(
-            "Invalid FPS reported by decoder. Ensure ffmpeg/codecs are available (Railway: NIXPACKS_PKGS=ffmpeg) or convert the video to a standard MP4 (H.264)."
+            "Invalid FPS reported by decoder. Ensure ffmpeg/codecs are available (Railway: NIXPACKS_PKGS=ffmpeg,ffmpeg-full) or convert the video to a standard MP4 (H.264)."
         )
     duration = total_frames / fps if fps > 0 else 0
     
