@@ -108,21 +108,37 @@ def download_video_from_url(url):
 
 def extract_frames_from_video(video_path, max_frames=20):
     """Extract frames from video for analysis"""
+    # Check if file exists and get file size
+    if not os.path.exists(video_path):
+        raise Exception(f"Video file not found: {video_path}")
+    
+    file_size = os.path.getsize(video_path)
+    if file_size == 0:
+        raise Exception("Video file is empty or corrupted")
+    
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        # Common on minimal hosts when codecs/ffmpeg are missing
+        # Check if it's a codec issue or file corruption
         raise Exception(
-            "Failed to open video. This often happens when codecs are missing. On Railway, set NIXPACKS_PKGS=ffmpeg,ffmpeg-full and redeploy, or upload an H.264 MP4. The nixpacks.toml should also include ffmpeg in nixPkgs."
+            f"Failed to open video file. File size: {file_size} bytes. "
+            f"This often happens when codecs are missing or the video file is corrupted. "
+            f"Try uploading a different video file or ensure it's a valid MP4/H.264 format. "
+            f"On Railway, set NIXPACKS_PKGS=ffmpeg,ffmpeg-full and redeploy."
         )
     frames = []
     
     # Get video properties
     fps = cap.get(cv2.CAP_PROP_FPS)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    
     if fps is None or fps <= 0:
         cap.release()
         raise Exception(
-            "Invalid FPS reported by decoder. Ensure ffmpeg/codecs are available (Railway: NIXPACKS_PKGS=ffmpeg,ffmpeg-full) or convert the video to a standard MP4 (H.264)."
+            f"Invalid video properties detected. FPS: {fps}, Total frames: {total_frames}, "
+            f"Resolution: {width}x{height}. This usually indicates a corrupted video file or missing codecs. "
+            f"Try uploading a different video file or ensure it's a valid MP4/H.264 format."
         )
     duration = total_frames / fps if fps > 0 else 0
     
