@@ -11,6 +11,8 @@ from io import BytesIO
 from PIL import Image
 import json
 import time
+import yt_dlp
+import re
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -89,20 +91,73 @@ After extracting all timestamps, provide a comprehensive summary that explains:
 
 Be thorough in identifying moments that fit these specific categories and extract all visible metadata."""
 
-def download_video_from_url(url):
-    """Download video from URL"""
+def is_youtube_url(url):
+    """Check if URL is a YouTube video"""
+    youtube_patterns = [
+        r'(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([^&\n?#]+)',
+        r'(?:https?://)?(?:www\.)?youtu\.be/([^&\n?#]+)',
+        r'(?:https?://)?(?:www\.)?youtube\.com/embed/([^&\n?#]+)',
+        r'(?:https?://)?(?:www\.)?youtube\.com/v/([^&\n?#]+)'
+    ]
+    
+    for pattern in youtube_patterns:
+        if re.match(pattern, url):
+            return True
+    return False
+
+def download_youtube_video(url):
+    """Download YouTube video using yt-dlp"""
     try:
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
+        # Configure yt-dlp options
+        ydl_opts = {
+            'format': 'best[ext=mp4]/best',  # Prefer MP4 format
+            'outtmpl': tempfile.gettempdir() + '/%(title)s.%(ext)s',
+            'noplaylist': True,  # Don't download playlists
+            'quiet': True,  # Suppress output
+        }
         
-        # Create temporary file
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-        
-        for chunk in response.iter_content(chunk_size=8192):
-            temp_file.write(chunk)
-        
-        temp_file.close()
-        return temp_file.name
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # Extract video info
+            info = ydl.extract_info(url, download=False)
+            video_title = info.get('title', 'video')
+            
+            # Download the video
+            ydl.download([url])
+            
+            # Find the downloaded file
+            downloaded_files = []
+            for file in os.listdir(tempfile.gettempdir()):
+                if file.startswith(video_title[:50]):  # Match by title
+                    downloaded_files.append(os.path.join(tempfile.gettempdir(), file))
+            
+            if downloaded_files:
+                # Return the most recent file
+                latest_file = max(downloaded_files, key=os.path.getctime)
+                return latest_file
+            else:
+                raise Exception("Could not find downloaded video file")
+                
+    except Exception as e:
+        raise Exception(f"Failed to download YouTube video: {str(e)}")
+
+def download_video_from_url(url):
+    """Download video from URL (supports YouTube and direct links)"""
+    try:
+        if is_youtube_url(url):
+            return download_youtube_video(url)
+        else:
+            # Handle direct video URLs
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
+            
+            # Create temporary file
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+            
+            for chunk in response.iter_content(chunk_size=8192):
+                temp_file.write(chunk)
+            
+            temp_file.close()
+            return temp_file.name
     except Exception as e:
         raise Exception(f"Failed to download video: {str(e)}")
 
